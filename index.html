@@ -1,0 +1,1123 @@
+<title>World English Bible</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#f1ede4">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WEB Bible">
+<script>
+// Applied as early as possible (before the stylesheet paints) so a
+// manually-chosen theme never flashes the wrong colors on load.
+(function(){
+  try {
+    var t = localStorage.getItem("web-bible-theme");
+    if (t !== "light" && t !== "dark"){
+      t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    }
+    document.documentElement.setAttribute("data-theme", t);
+  } catch(e){}
+})();
+</script>
+<style>
+  :root{
+    --ink:#241d17;
+    --ink-soft:#5b5148;
+    --paper:#f1ede4;
+    --paper-raised:#ffffff;
+    --paper-line:#ddd5c4;
+    --accent:#556b7d;
+    --accent-strong:#3e5566;
+    --wine:#7c2c34;
+    --wine-soft:#a5535a;
+    --focus:#3f6b66;
+    --shadow: 0 1px 2px rgba(36,29,23,.06), 0 4px 16px rgba(36,29,23,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#ece3d2;
+      --ink-soft:#b9ac96;
+      --paper:#1a1512;
+      --paper-raised:#241d18;
+      --paper-line:#3a2f26;
+      --accent:#8fa9bc;
+      --accent-strong:#b3c8d6;
+      --wine:#d98d92;
+      --wine-soft:#c46a70;
+      --focus:#7fb3ac;
+      --shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#ece3d2;
+    --ink-soft:#b9ac96;
+    --paper:#1a1512;
+    --paper-raised:#241d18;
+    --paper-line:#3a2f26;
+    --accent:#8fa9bc;
+    --accent-strong:#b3c8d6;
+    --wine:#d98d92;
+    --wine-soft:#c46a70;
+    --focus:#7fb3ac;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Literata","Iowan Old Style","Georgia",serif;
+    overflow:hidden;
+  }
+  :root{ --topbar-h: 60px; }
+
+  h1,h2,h3,.display{
+    font-family:"Fraunces","Iowan Old Style",Georgia,serif;
+    font-optical-sizing:auto;
+    text-wrap:balance;
+  }
+  .ui{font-family:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;}
+
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+  button:focus-visible, input:focus-visible, .book-cell:focus-visible, .chap-cell:focus-visible {
+    outline:2px solid var(--focus); outline-offset:2px; border-radius:4px;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    position:fixed; top:0; left:0; right:0;
+    height:calc(var(--topbar-h) + env(safe-area-inset-top,0px));
+    display:flex;
+    align-items:center;
+    gap:2px;
+    padding:0 8px;
+    padding-top:env(safe-area-inset-top,0px);
+    background:var(--paper-raised);
+    border-bottom:1px solid var(--paper-line);
+    box-shadow:var(--shadow);
+    z-index:20;
+    transform:translateY(0);
+    transition:transform .28s cubic-bezier(.32,.72,0,1);
+  }
+  .topbar.hide{ transform:translateY(-100%); }
+  .icon-btn{
+    width:40px;height:40px;flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:10px;color:var(--ink-soft);
+  }
+  .icon-btn:active{background:var(--paper-line);}
+  .icon-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;}
+
+  .ref-btn{
+    flex:1 1 auto;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:2px 4px;
+    border-radius:10px;
+  }
+  .ref-btn:active{background:var(--paper-line);}
+  .ref-btn .eyebrow{
+    font-family:"IBM Plex Sans",sans-serif;
+    font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent); font-weight:600;
+  }
+  .ref-btn .title{
+    font-family:"Fraunces",Georgia,serif;
+    font-size:17px; font-weight:600; line-height:1.15;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
+  }
+
+  .fontsize-group{display:flex; align-items:center; gap:0; flex:0 0 auto;}
+  .fontsize-group button{width:34px;height:40px;border-radius:8px;color:var(--ink-soft); font-family:"IBM Plex Sans",sans-serif;}
+  .fontsize-group button:active{background:var(--paper-line);}
+  .fs-small{font-size:12px;} .fs-big{font-size:18px;}
+
+  .theme-switch{
+    flex:0 0 auto; width:46px; height:26px; border-radius:999px;
+    background:var(--paper-line); padding:2px; display:flex; align-items:center;
+    margin-left:2px;
+  }
+  .theme-switch .knob{
+    width:22px; height:22px; border-radius:50%; background:var(--paper-raised);
+    box-shadow:0 1px 3px rgba(0,0,0,.25);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--ink-soft);
+    transform:translateX(0);
+    transition:transform .22s cubic-bezier(.32,.72,0,1), color .22s ease;
+  }
+  .theme-switch[aria-checked="true"] .knob{ transform:translateX(20px); color:var(--accent); }
+  .theme-switch .knob svg{
+    position:absolute; width:14px; height:14px; stroke:currentColor; fill:none;
+    stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+    opacity:0; transition:opacity .15s ease;
+  }
+  .theme-switch .knob{ position:relative; }
+  .theme-switch[aria-checked="false"] .icon-sun{ opacity:1; }
+  .theme-switch[aria-checked="true"] .icon-moon{ opacity:1; }
+
+  /* ---------- Reader ---------- */
+  #reader{
+    position:fixed; inset:0;
+    overflow:hidden;
+  }
+  #track{
+    display:flex;
+    height:100%;
+  }
+  .page{
+    flex:0 0 auto;
+    height:100%;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
+  }
+  .page-inner{
+    max-width:640px;
+    margin:0 auto;
+    padding:calc(var(--topbar-h) + env(safe-area-inset-top,0px) + 20px) 20px calc(env(safe-area-inset-bottom,0px) + 36px);
+    transition:padding-top .28s cubic-bezier(.32,.72,0,1);
+    min-height:100%;
+  }
+  #reader.chrome-hidden .page-inner{
+    padding-top:calc(env(safe-area-inset-top,0px) + 20px);
+  }
+  .chapter-head{
+    display:flex; align-items:baseline; gap:10px; margin-bottom:18px;
+    padding-bottom:12px; border-bottom:1px solid var(--paper-line);
+  }
+  .chapter-head .testament{
+    font-family:"IBM Plex Sans",sans-serif; font-size:10.5px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--accent); font-weight:600;
+  }
+  .chapter-head h2{font-size:28px; margin:2px 0 0; font-weight:600; color:var(--ink);}
+
+  .chapter-super{
+    font-family:"Literata",Georgia,serif;
+    font-style:italic;
+    font-size:calc(14px * var(--scale,1));
+    line-height:1.5;
+    color:var(--accent);
+    margin:0 0 20px;
+  }
+
+  .verses{ font-size: calc(16px * var(--scale,1)); line-height:1.75; }
+  .verses .para{ margin:0 0 1.1em; }
+  .verses .para:last-child{ margin-bottom:0; }
+  .verse{ display:inline; }
+  .vnum{
+    font-family:"IBM Plex Sans",sans-serif;
+    font-size:.62em; font-weight:600; color:var(--accent);
+    vertical-align:super; line-height:0; margin-right:.15em;
+    user-select:none;
+  }
+  .verse.flash .vtext{ background: color-mix(in srgb, var(--accent) 28%, transparent); border-radius:3px; }
+  .vtext{ transition: background .25s ease; }
+  .note-ref{
+    font-family:"IBM Plex Sans",sans-serif;
+    font-size:.62em; font-weight:700; color:var(--wine);
+    vertical-align:super; line-height:0; margin:0 .1em;
+    padding:.2em .05em; cursor:pointer;
+  }
+
+  .chapter-end{
+    margin-top:34px; padding-top:16px; border-top:1px solid var(--paper-line);
+    display:flex; justify-content:center;
+  }
+  .chapter-end span{
+    font-family:"IBM Plex Sans",sans-serif; font-size:11.5px; font-weight:600;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--ink-soft); opacity:.55;
+  }
+
+  /* ---------- Install prompt ---------- */
+  .install-pill{
+    position:fixed; left:50%; z-index:30;
+    bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
+    transform:translateX(-50%);
+    display:flex; align-items:center; gap:8px;
+    padding:11px 18px; border-radius:999px;
+    background:var(--ink); color:var(--paper);
+    font-family:"IBM Plex Sans",sans-serif; font-size:13.5px; font-weight:600;
+    box-shadow:0 6px 20px rgba(0,0,0,.25);
+    transition:transform .25s cubic-bezier(.32,.72,0,1), opacity .25s ease;
+  }
+  .install-pill[hidden]{display:none;}
+  .install-pill:active{transform:translateX(-50%) scale(.96);}
+  .install-pill svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+
+  /* ---------- Sheets (book/chapter picker + search) ---------- */
+  .sheet-backdrop{
+    position:fixed; inset:0; background:rgba(20,16,12,.45);
+    z-index:40; opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .sheet-backdrop.open{opacity:1; pointer-events:auto;}
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:41;
+    background:var(--paper-raised);
+    border-radius:18px 18px 0 0;
+    box-shadow:0 -8px 30px rgba(0,0,0,.25);
+    max-height:82vh;
+    display:flex; flex-direction:column;
+    transform:translateY(100%);
+    transition:transform .25s cubic-bezier(.32,.72,0,1);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .sheet.open{transform:translateY(0);}
+  .sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--paper-line);margin:10px auto 4px;flex:0 0 auto;}
+  .sheet-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 18px 12px; flex:0 0 auto; border-bottom:1px solid var(--paper-line);
+  }
+  .sheet-head h3{font-size:19px; margin:0;}
+  .sheet-head .back-btn{display:flex; align-items:center; gap:4px; font-family:"IBM Plex Sans",sans-serif; font-size:13px; font-weight:600; color:var(--accent);}
+  .sheet-head .back-btn[hidden]{display:none;}
+  [hidden]{display:none !important;}
+  .sheet-head .back-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}
+  .sheet-body{overflow-y:auto; padding:8px 10px 24px;}
+
+  .testament-label{
+    font-family:"IBM Plex Sans",sans-serif; font-size:11px; font-weight:600;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--accent);
+    padding:14px 10px 6px;
+  }
+  .book-grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(52px,1fr));
+    gap:7px; padding:6px 10px 14px;
+  }
+  .book-cell{
+    aspect-ratio:1; border-radius:10px; background:var(--paper);
+    display:flex; align-items:center; justify-content:center;
+    font-family:"IBM Plex Sans",sans-serif; font-size:13px; font-weight:600;
+    border:1px solid var(--paper-line);
+  }
+  .book-cell:active{background:var(--paper-line);}
+  .book-cell.current{background:var(--wine); color:#fdf6ea; border-color:var(--wine);}
+
+  .chap-grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(46px,1fr));
+    gap:8px; padding:12px 10px 6px;
+  }
+  .chap-cell{
+    aspect-ratio:1; border-radius:10px; background:var(--paper);
+    display:flex; align-items:center; justify-content:center;
+    font-family:"IBM Plex Sans",sans-serif; font-size:14px; font-weight:600;
+    border:1px solid var(--paper-line);
+  }
+  .chap-cell:active{background:var(--paper-line);}
+  .chap-cell.current{background:var(--wine); color:#fdf6ea; border-color:var(--wine);}
+
+  .search-input-wrap{padding:12px 18px 4px;}
+  .search-input{
+    width:100%; padding:11px 14px; border-radius:12px; border:1px solid var(--paper-line);
+    background:var(--paper); color:var(--ink); font-family:"IBM Plex Sans",sans-serif; font-size:15px;
+  }
+  .search-hint{
+    font-family:"IBM Plex Sans",sans-serif; font-size:12.5px; color:var(--ink-soft);
+    padding:8px 18px 2px;
+  }
+  .search-empty{
+    padding:40px 24px; text-align:center; color:var(--ink-soft);
+    font-family:"IBM Plex Sans",sans-serif; font-size:14px;
+  }
+  .note-kind{
+    font-family:"IBM Plex Sans",sans-serif; font-size:11px; font-weight:700;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--wine);
+    padding:2px 20px 10px;
+  }
+  .note-text{
+    font-family:"Literata","Iowan Old Style",Georgia,serif;
+    font-size:16.5px; line-height:1.6; color:var(--ink);
+    padding:0 20px 24px;
+  }
+  .result-row{
+    display:block; width:100%; text-align:left; padding:11px 18px; border-radius:10px;
+  }
+  .result-row:active{background:var(--paper-line);}
+  .result-ref{
+    font-family:"IBM Plex Sans",sans-serif; font-size:11.5px; font-weight:700;
+    color:var(--wine); letter-spacing:.02em; margin-bottom:2px;
+  }
+  .result-text{font-size:14.5px; line-height:1.5; color:var(--ink);}
+  .result-text mark{background:transparent; color:var(--ink); font-weight:700; text-decoration:underline; text-decoration-color:var(--accent);}
+
+  /* ---------- Loading ---------- */
+  #loading{
+    position:fixed; inset:0; z-index:60; background:var(--paper);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+  }
+  #loading .display{font-size:22px; color:var(--ink);}
+  #loading .ui{font-size:13px; color:var(--ink-soft);}
+  .spinner{
+    width:26px;height:26px;border-radius:50%;
+    border:2.5px solid var(--paper-line); border-top-color:var(--accent);
+    animation:spin 0.9s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .spinner{animation-duration:2s;}
+    .sheet, .sheet-backdrop, .vtext{transition:none;}
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #error-box{
+    position:fixed; inset:0; z-index:61; background:var(--paper); color:var(--ink);
+    display:none; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:32px; text-align:center;
+  }
+  #error-box .ui{font-size:14px; color:var(--ink-soft); max-width:320px;}
+  #error-box button{
+    margin-top:6px; padding:10px 20px; border-radius:10px; background:var(--wine); color:#fdf6ea;
+    font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-size:14px;
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=IBM+Plex+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+
+<div id="loading">
+  <div class="spinner" aria-hidden="true"></div>
+  <div class="display">World English Bible</div>
+  <div class="ui">Opening the book&hellip;</div>
+</div>
+
+<div id="error-box">
+  <div class="display" style="font-size:19px;">Couldn&rsquo;t load the text</div>
+  <div class="ui" id="error-msg">The Bible data file didn&rsquo;t load. Check your connection and try again.</div>
+  <button id="retry-btn" class="ui">Try again</button>
+</div>
+
+<header class="topbar ui" id="topbar" hidden>
+  <div class="fontsize-group">
+    <button class="icon-btn fs-small" id="fs-down" aria-label="Smaller text">A</button>
+    <button class="icon-btn fs-big" id="fs-up" aria-label="Larger text">A</button>
+  </div>
+  <button class="ref-btn" id="ref-btn" aria-haspopup="true">
+    <span class="title" id="ref-title">Genesis 1</span>
+  </button>
+  <button class="icon-btn" id="search-btn" aria-label="Search the Bible">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  </button>
+  <button class="theme-switch" id="theme-btn" role="switch" aria-label="Toggle dark mode" aria-checked="false">
+    <span class="knob">
+      <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.4 4.4l1.85 1.85M17.75 17.75l1.85 1.85M2.5 12h2.6M18.9 12h2.6M4.4 19.6l1.85-1.85M17.75 6.25l1.85-1.85"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 1 0 10.5 10.5z"/></svg>
+    </span>
+  </button>
+</header>
+
+<button class="install-pill ui" id="install-btn" hidden>
+  <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>
+  Add to Home Screen
+</button>
+
+<main id="reader" hidden>
+  <div id="track">
+    <div class="page" id="page-prev"><div class="page-inner" id="inner-prev"></div></div>
+    <div class="page" id="page-curr"><div class="page-inner" id="inner-curr"></div></div>
+    <div class="page" id="page-next"><div class="page-inner" id="inner-next"></div></div>
+  </div>
+</main>
+
+<div class="sheet-backdrop" id="backdrop"></div>
+
+<!-- Book / chapter picker -->
+<section class="sheet" id="picker-sheet" aria-label="Choose a book and chapter">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <button class="back-btn ui" id="picker-back" hidden>
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg> Books
+    </button>
+    <h3 class="display" id="picker-title">Books</h3>
+    <span style="width:52px"></span>
+  </div>
+  <div class="sheet-body" id="picker-body"></div>
+</section>
+
+<!-- Search -->
+<section class="sheet" id="search-sheet" aria-label="Search the Bible">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <span style="width:52px"></span>
+    <h3 class="display">Search</h3>
+    <button class="back-btn ui" id="search-close">Close</button>
+  </div>
+  <div class="search-input-wrap">
+    <input class="search-input" id="search-input" type="search" placeholder="Search words or a verse (e.g. John 3:16)" autocomplete="off" autocorrect="off" spellcheck="false">
+  </div>
+  <div class="search-hint" id="search-hint">Searching all 66 books of the World English Bible.</div>
+  <div class="sheet-body" id="search-body"></div>
+</section>
+
+<!-- Footnote / cross-reference note -->
+<section class="sheet" id="note-sheet" aria-label="Note">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <span style="width:52px"></span>
+    <h3 class="display" id="note-sheet-title">Note</h3>
+    <button class="back-btn ui" id="note-close">Close</button>
+  </div>
+  <div class="sheet-body" id="note-body"></div>
+</section>
+
+<script>
+(function(){
+  "use strict";
+
+  var TESTAMENT_SPLIT = 39; // books[0..38] = Old Testament, 39..65 = New Testament
+  var books = null;         // [{id,name,chapters:[[verseText,...],...]}]
+  var flatVerses = null;    // [{b,c,v,ref,text,lower}] built lazily for search
+  var state = { b: 0, c: 0, scale: 1 };
+
+  var $ = function(id){ return document.getElementById(id); };
+  var readerEl = $("reader"), topbarEl = $("topbar");
+  var loadingEl = $("loading"), errorEl = $("error-box");
+  var trackEl = $("track");
+  var pagePrevEl = $("page-prev"), pageCurrEl = $("page-curr"), pageNextEl = $("page-next");
+  var innerPrevEl = $("inner-prev"), innerCurrEl = $("inner-curr"), innerNextEl = $("inner-next");
+  var currentPrevRef = null, currentNextRef = null; // {b,c} of neighboring chapters, or null at the very ends
+  var containerW = 0;
+
+  function safeGet(key){
+    try { return localStorage.getItem(key); } catch(e){ return null; }
+  }
+  function safeSet(key, val){
+    try { localStorage.setItem(key, val); } catch(e){ /* ignore */ }
+  }
+
+  function loadState(){
+    var raw = safeGet("web-bible-state");
+    if (raw){
+      try {
+        var parsed = JSON.parse(raw);
+        if (typeof parsed.b === "number") state.b = parsed.b;
+        if (typeof parsed.c === "number") state.c = parsed.c;
+        if (typeof parsed.scale === "number") state.scale = parsed.scale;
+      } catch(e){}
+    }
+  }
+  function persistState(){
+    safeSet("web-bible-state", JSON.stringify(state));
+  }
+
+  function fetchData(){
+    loadingEl.style.display = "flex";
+    errorEl.style.display = "none";
+    fetch("web-bible-data.json")
+      .then(function(r){
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function(data){
+        books = data;
+        if (state.b < 0 || state.b >= books.length) state.b = 0;
+        if (state.c < 0 || state.c >= books[state.b].chapters.length) state.c = 0;
+        applyScale();
+        loadingEl.style.display = "none";
+        topbarEl.hidden = false;
+        readerEl.hidden = false;
+        renderChapter(state.b, state.c, { scroll:false });
+      })
+      .catch(function(err){
+        loadingEl.style.display = "none";
+        errorEl.style.display = "flex";
+        $("error-msg").textContent = "The Bible data file didn’t load (" + err.message + "). Check your connection and try again.";
+      });
+  }
+
+  $("retry-btn").addEventListener("click", fetchData);
+
+  /* ---------------- rendering ---------------- */
+
+  function neighborChapter(bIdx, cIdx, dir){
+    var nc = cIdx + dir;
+    if (nc >= 0 && nc < books[bIdx].chapters.length) return { b: bIdx, c: nc };
+    var nb = bIdx + dir;
+    if (nb < 0 || nb >= books.length) return null;
+    var chapIdx = dir > 0 ? 0 : books[nb].chapters.length - 1;
+    return { b: nb, c: chapIdx };
+  }
+
+  var PARA_MARK = "¶";  // hard paragraph break, mid-verse (no new verse number)
+  var LINE_MARK = " ";  // soft line break, mid-verse (no new verse number)
+  var NOTE_MARK = "†";  // marks a footnote/cross-reference point in verse text
+
+  // Turns 0,1,2...25,26,27... into a,b,c...z,aa,ab... (spreadsheet-column style)
+  function noteLetter(n){
+    var s = "";
+    n = n + 1;
+    while (n > 0){
+      var rem = (n - 1) % 26;
+      s = String.fromCharCode(97 + rem) + s;
+      n = Math.floor((n - 1) / 26);
+    }
+    return s;
+  }
+
+  // Renders one line of verse text, converting embedded note markers into
+  // tappable superscript letters and escaping everything else. noteCounter
+  // is shared across a whole chapter's render: .n is the running letter
+  // (a, b, c... continuing through the chapter) and .perVerse[vnum] counts
+  // how many markers this specific verse has already used, so each one
+  // maps to the right entry in that verse\'s notes array.
+  function renderTextWithNotes(text, bIdx, cIdx, vnum, noteCounter){
+    if (text.indexOf(NOTE_MARK) === -1) return escapeHtml(text);
+    var parts = text.split(NOTE_MARK);
+    var out = escapeHtml(parts[0]);
+    for (var p = 1; p < parts.length; p++){
+      var seen = noteCounter.perVerse[vnum] || 0;
+      var letter = noteLetter(noteCounter.n++);
+      out += '<sup class="note-ref" data-b="' + bIdx + '" data-c="' + cIdx + '" data-v="' + vnum + '" data-i="' + seen + '">' + letter + '</sup>';
+      noteCounter.perVerse[vnum] = seen + 1;
+      out += escapeHtml(parts[p]);
+    }
+    return out;
+  }
+
+  function buildChapterHTML(bIdx, cIdx){
+    var book = books[bIdx];
+    var verses = book.chapters[cIdx];
+
+    var html = '<div class="chapter-head">' +
+      '<div><h2>' + book.name + ' ' + (cIdx + 1) + '</h2></div></div>';
+
+    var heading = book.headings && book.headings[String(cIdx)];
+    if (heading){
+      html += '<p class="chapter-super">' + escapeHtml(heading) + '</p>';
+    }
+
+    var paraStarts = (book.paragraphs && book.paragraphs[String(cIdx)]) || [];
+    var lineStarts = (book.lines && book.lines[String(cIdx)]) || [];
+    var paraSet = {}, lineSet = {};
+    for (var pi = 0; pi < paraStarts.length; pi++) paraSet[paraStarts[pi]] = true;
+    for (var li = 0; li < lineStarts.length; li++) lineSet[lineStarts[li]] = true;
+
+    var noteCounter = { n: 0, perVerse: {} };
+
+    html += '<div class="verses">';
+    for (var i = 0; i < verses.length; i++){
+      var vnum = i + 1;
+      var chunks = verses[i].split(PARA_MARK);
+      for (var ci = 0; ci < chunks.length; ci++){
+        if (vnum === 1 && ci === 0){
+          html += '<p class="para">';
+        } else if (ci > 0){
+          html += '</p><p class="para">';           // mid-verse hard break
+        } else if (paraSet[vnum]){
+          html += '</p><p class="para">';            // new-verse hard break
+        } else if (lineSet[vnum]){
+          html += '<br>';                            // new-verse soft (poetic) break
+        }
+        var lines = chunks[ci].split(LINE_MARK);
+        var segHtml = [];
+        for (var li = 0; li < lines.length; li++) segHtml.push(renderTextWithNotes(lines[li], bIdx, cIdx, vnum, noteCounter));
+        var textHtml = segHtml.join('<br>');
+        if (ci === 0){
+          html += '<span class="verse" data-v="' + vnum + '"><sup class="vnum">' + vnum + '</sup><span class="vtext">' + textHtml + '</span></span> ';
+        } else {
+          html += '<span class="verse verse-cont" data-v="' + vnum + '"><span class="vtext">' + textHtml + '</span></span> ';
+        }
+      }
+    }
+    html += '</p></div>';
+
+    var isLast = (bIdx === books.length - 1 && cIdx === book.chapters.length - 1);
+    var isFirst = (bIdx === 0 && cIdx === 0);
+    if (isLast || isFirst){
+      html += '<div class="chapter-end ui"><span>' +
+        (isLast ? "End of the World English Bible" : "Swipe left for the next chapter") +
+        '</span></div>';
+    }
+    return html;
+  }
+
+  function layoutTrack(animate){
+    containerW = readerEl.clientWidth;
+    pagePrevEl.style.width = containerW + "px";
+    pageCurrEl.style.width = containerW + "px";
+    pageNextEl.style.width = containerW + "px";
+    trackEl.style.width = (containerW * 3) + "px";
+    setTrackX(-containerW, !!animate);
+  }
+
+  function setTrackX(px, animate){
+    trackEl.style.transition = animate ? "transform .3s cubic-bezier(.32,.72,0,1)" : "none";
+    trackEl.style.transform = "translateX(" + px + "px)";
+  }
+
+  // Animates the track to px, then calls onDone once - synced to the
+  // transition's actual end (with a timeout fallback so a swipe can
+  // never get stuck if the transitionend event is missed).
+  function animateTrackTo(px, onDone){
+    setTrackX(px, true);
+    var done = false;
+    function finish(){
+      if (done) return;
+      done = true;
+      trackEl.removeEventListener("transitionend", onEnd);
+      onDone();
+    }
+    function onEnd(e){
+      if (e.target === trackEl && e.propertyName === "transform") finish();
+    }
+    trackEl.addEventListener("transitionend", onEnd);
+    setTimeout(finish, 340);
+  }
+
+  function renderChapter(bIdx, cIdx, opts){
+    opts = opts || {};
+    state.b = bIdx; state.c = cIdx;
+    persistState();
+
+    var book = books[bIdx];
+    $("ref-title").textContent = book.name + " " + (cIdx + 1);
+
+    currentPrevRef = neighborChapter(bIdx, cIdx, -1);
+    currentNextRef = neighborChapter(bIdx, cIdx, 1);
+
+    innerCurrEl.innerHTML = buildChapterHTML(bIdx, cIdx);
+    innerPrevEl.innerHTML = currentPrevRef ? buildChapterHTML(currentPrevRef.b, currentPrevRef.c) : "";
+    innerNextEl.innerHTML = currentNextRef ? buildChapterHTML(currentNextRef.b, currentNextRef.c) : "";
+
+    if (opts.scroll !== false){
+      pagePrevEl.scrollTop = 0;
+      pageCurrEl.scrollTop = 0;
+      pageNextEl.scrollTop = 0;
+    }
+
+    layoutTrack(false);
+
+    if (opts.highlightVerse){
+      var target = innerCurrEl.querySelector('.verse[data-v="' + opts.highlightVerse + '"]');
+      if (target){
+        target.classList.add("flash");
+        setTimeout(function(){
+          target.scrollIntoView({ block:"center" });
+        }, 30);
+        setTimeout(function(){ target.classList.remove("flash"); }, 1600);
+      }
+    }
+  }
+
+  function escapeHtml(s){
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  /* ---------------- font size ---------------- */
+
+  function applyScale(){
+    document.body.style.setProperty("--scale", state.scale);
+  }
+  $("fs-down").addEventListener("click", function(){
+    state.scale = Math.max(0.8, +(state.scale - 0.1).toFixed(2));
+    applyScale(); persistState();
+  });
+  $("fs-up").addEventListener("click", function(){
+    state.scale = Math.min(1.6, +(state.scale + 0.1).toFixed(2));
+    applyScale(); persistState();
+  });
+
+  /* ---------------- theme toggle ---------------- */
+  /* A small inline script at the top of the page already applied any
+     saved choice (or the system preference) to [data-theme] before the
+     stylesheet painted, to avoid a flash of the wrong theme. This just
+     wires up the switch and makes future taps stick, overriding the
+     system setting from then on. */
+
+  var THEME_KEY = "web-bible-theme";
+  var themeBtn = $("theme-btn");
+  var themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  var THEME_COLORS = { light: "#f1ede4", dark: "#1a1512" };
+
+  function syncThemeUI(theme){
+    themeBtn.setAttribute("aria-checked", theme === "dark" ? "true" : "false");
+    if (themeColorMeta) themeColorMeta.setAttribute("content", THEME_COLORS[theme]);
+  }
+
+  syncThemeUI(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
+
+  themeBtn.addEventListener("click", function(){
+    var current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+    var next = current === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    syncThemeUI(next);
+    safeSet(THEME_KEY, next);
+  });
+
+  /* ---------------- sheets ---------------- */
+
+  var backdrop = $("backdrop");
+  var pickerSheet = $("picker-sheet");
+  var searchSheet = $("search-sheet");
+  var noteSheet = $("note-sheet");
+  var openSheetEl = null;
+
+  function openSheet(el){
+    closeSheets();
+    openSheetEl = el;
+    backdrop.classList.add("open");
+    el.classList.add("open");
+  }
+  function closeSheets(){
+    backdrop.classList.remove("open");
+    pickerSheet.classList.remove("open");
+    searchSheet.classList.remove("open");
+    noteSheet.classList.remove("open");
+    openSheetEl = null;
+  }
+  backdrop.addEventListener("click", closeSheets);
+
+  /* ---- footnotes & cross-references ---- */
+
+  $("note-close").addEventListener("click", closeSheets);
+
+  trackEl.addEventListener("click", function(e){
+    var ref = e.target.closest ? e.target.closest(".note-ref") : null;
+    if (!ref) return;
+    var b = +ref.getAttribute("data-b");
+    var c = +ref.getAttribute("data-c");
+    var v = ref.getAttribute("data-v");
+    var i = +ref.getAttribute("data-i");
+    var book = books[b];
+    var entry = book.notes && book.notes[String(c)] && book.notes[String(c)][v] && book.notes[String(c)][v][i];
+    if (!entry) return;
+    var kind = entry[0], text = entry[1];
+    $("note-sheet-title").textContent = book.name + " " + (c + 1) + ":" + v;
+    $("note-body").innerHTML =
+      '<div class="note-kind">' + (kind === "x" ? "Cross Reference" : "Translator’s Note") + '</div>' +
+      '<div class="note-text">' + escapeHtml(text) + '</div>';
+    openSheet(noteSheet);
+  });
+
+  /* ---- book / chapter picker ---- */
+
+  // Turns a USFX book id ("1SA", "GEN", "SNG") into a compact display
+  // abbreviation ("1Sa", "Gen", "Sng") for the dense book grid.
+  function bookAbbr(id){
+    var m = id.match(/^(\d)([A-Z]+)$/);
+    var letters = m ? m[2] : id;
+    var cased = letters.charAt(0) + letters.slice(1).toLowerCase();
+    return m ? (m[1] + cased) : cased;
+  }
+
+  function renderBookList(){
+    $("picker-back").hidden = true;
+    $("picker-title").textContent = "Books";
+    var html = "";
+    for (var i = 0; i < books.length; i++){
+      if (i === 0) html += '<div class="testament-label">Old Testament</div><div class="book-grid">';
+      if (i === TESTAMENT_SPLIT) html += '</div><div class="testament-label">New Testament</div><div class="book-grid">';
+      var cur = (i === state.b) ? " current" : "";
+      html += '<button class="book-cell ui' + cur + '" data-book="' + i + '">' + bookAbbr(books[i].id) + '</button>';
+    }
+    html += '</div>';
+    $("picker-body").innerHTML = html;
+    var cells = $("picker-body").querySelectorAll(".book-cell");
+    cells.forEach(function(cell){
+      cell.addEventListener("click", function(){
+        renderChapterGrid(+cell.getAttribute("data-book"));
+      });
+    });
+  }
+
+  function renderChapterGrid(bIdx){
+    var book = books[bIdx];
+    $("picker-back").hidden = false;
+    $("picker-title").textContent = book.name;
+    var html = '<div class="chap-grid">';
+    for (var c = 0; c < book.chapters.length; c++){
+      var cur = (bIdx === state.b && c === state.c) ? " current" : "";
+      html += '<button class="chap-cell ui' + cur + '" data-chap="' + c + '">' + (c+1) + '</button>';
+    }
+    html += '</div>';
+    var body = $("picker-body");
+    body.innerHTML = html;
+    body.scrollTop = 0;
+    body.querySelectorAll(".chap-cell").forEach(function(cell){
+      cell.addEventListener("click", function(){
+        renderChapter(bIdx, +cell.getAttribute("data-chap"), {});
+        closeSheets();
+      });
+    });
+  }
+
+  $("picker-back").addEventListener("click", renderBookList);
+  $("ref-btn").addEventListener("click", function(){
+    renderBookList();
+    openSheet(pickerSheet);
+  });
+
+  /* ---- search ---- */
+
+  function buildFlatIndex(){
+    if (flatVerses) return flatVerses;
+    flatVerses = [];
+    for (var bi = 0; bi < books.length; bi++){
+      var book = books[bi];
+      for (var ci = 0; ci < book.chapters.length; ci++){
+        var verses = book.chapters[ci];
+        for (var vi = 0; vi < verses.length; vi++){
+          var text = verses[vi];
+          flatVerses.push({
+            b: bi, c: ci, v: vi + 1,
+            ref: book.name + " " + (ci+1) + ":" + (vi+1),
+            text: text,
+            lower: text.toLowerCase()
+          });
+        }
+      }
+    }
+    return flatVerses;
+  }
+
+  var BOOK_NAME_LOOKUP = null;
+  function buildBookLookup(){
+    if (BOOK_NAME_LOOKUP) return BOOK_NAME_LOOKUP;
+    BOOK_NAME_LOOKUP = [];
+    for (var i = 0; i < books.length; i++){
+      BOOK_NAME_LOOKUP.push({ idx:i, name: books[i].name.toLowerCase() });
+    }
+    return BOOK_NAME_LOOKUP;
+  }
+
+  // Try to parse "John 3:16", "1 cor 13", "gen 1" as a direct reference.
+  function tryParseReference(q){
+    var m = q.match(/^\s*([1-3]?\s?[a-zA-Z .]+?)\s+(\d+)(?::(\d+))?\s*$/);
+    if (!m) return null;
+    var namePart = m[1].trim().toLowerCase().replace(/\.$/, "");
+    var chap = parseInt(m[2], 10);
+    var verse = m[3] ? parseInt(m[3], 10) : null;
+    var lookup = buildBookLookup();
+    var match = null;
+    for (var i = 0; i < lookup.length; i++){
+      if (lookup[i].name === namePart){ match = lookup[i]; break; }
+    }
+    if (!match){
+      for (i = 0; i < lookup.length; i++){
+        if (lookup[i].name.indexOf(namePart) === 0){ match = lookup[i]; break; }
+      }
+    }
+    if (!match) return null;
+    var book = books[match.idx];
+    if (chap < 1 || chap > book.chapters.length) return null;
+    return { b: match.idx, c: chap - 1, v: verse };
+  }
+
+  function runSearch(q){
+    var body = $("search-body");
+    q = q.trim();
+    if (!q){
+      body.innerHTML = '<div class="search-empty">Type a word, phrase, or reference like <em>Psalm 23</em> or <em>John 3:16</em>.</div>';
+      return;
+    }
+
+    var ref = tryParseReference(q);
+    var refHtml = "";
+    if (ref){
+      var book = books[ref.b];
+      var label = book.name + " " + (ref.c + 1) + (ref.v ? (":" + ref.v) : "");
+      refHtml = '<button class="result-row ui" id="ref-jump">' +
+        '<div class="result-ref">Go to reference</div>' +
+        '<div class="result-text display" style="font-size:17px;">' + label + '</div>' +
+        '</button><div class="testament-label">Or search text</div>';
+    }
+
+    var list = buildFlatIndex();
+    var needle = q.toLowerCase();
+    var results = [];
+    for (var i = 0; i < list.length && results.length < 60; i++){
+      if (list[i].lower.indexOf(needle) !== -1) results.push(list[i]);
+    }
+
+    var html = "";
+    if (results.length === 0 && !ref){
+      html = '<div class="search-empty">No verses found for &ldquo;' + escapeHtml(q) + '&rdquo;.</div>';
+    } else if (results.length){
+      html += '<div class="testament-label">' + results.length + (results.length === 60 ? "+" : "") + ' verse' + (results.length===1?"":"s") + '</div>';
+      for (i = 0; i < results.length; i++){
+        var r = results[i];
+        var idx = r.lower.indexOf(needle);
+        var snippet = escapeHtml(r.text.slice(0, idx)) +
+          "<mark>" + escapeHtml(r.text.slice(idx, idx + needle.length)) + "</mark>" +
+          escapeHtml(r.text.slice(idx + needle.length));
+        html += '<button class="result-row ui" data-b="' + r.b + '" data-c="' + r.c + '" data-v="' + r.v + '">' +
+          '<div class="result-ref">' + r.ref + '</div>' +
+          '<div class="result-text">' + snippet + '</div></button>';
+      }
+    }
+
+    // Build the whole panel's markup once, then attach listeners once —
+    // assigning innerHTML twice would discard the first assignment's
+    // event-bound nodes (including the reference "Go to" button).
+    body.innerHTML = refHtml + html;
+    if (ref){
+      $("ref-jump").addEventListener("click", function(){
+        renderChapter(ref.b, ref.c, { highlightVerse: ref.v || undefined });
+        closeSheets();
+      });
+    }
+    body.querySelectorAll(".result-row[data-b]").forEach(function(row){
+      row.addEventListener("click", function(){
+        renderChapter(+row.getAttribute("data-b"), +row.getAttribute("data-c"), { highlightVerse: +row.getAttribute("data-v") });
+        closeSheets();
+      });
+    });
+  }
+
+  var searchDebounce = null;
+  $("search-input").addEventListener("input", function(e){
+    clearTimeout(searchDebounce);
+    var val = e.target.value;
+    searchDebounce = setTimeout(function(){ runSearch(val); }, 120);
+  });
+  $("search-btn").addEventListener("click", function(){
+    openSheet(searchSheet);
+    runSearch($("search-input").value || "");
+    setTimeout(function(){ $("search-input").focus(); }, 250);
+  });
+  $("search-close").addEventListener("click", closeSheets);
+
+  /* ---------------- boot ---------------- */
+
+  /* ---------------- immersive chrome toggle ---------------- */
+  /* Tapping the reading area hides the top bar so the text fills the
+     screen; tapping again (anywhere in the text) brings it back. */
+
+  var chromeHidden = false;
+  function setChrome(hidden){
+    chromeHidden = hidden;
+    topbarEl.classList.toggle("hide", hidden);
+    readerEl.classList.toggle("chrome-hidden", hidden);
+  }
+
+  /* ---------------- swipe navigation (finger-tracking) + tap-to-toggle ---------------- */
+  /* The page track follows the finger 1:1 while dragging horizontally,
+     showing the neighboring chapter slide in underneath the touch point
+     (like a normal page-turn). Releasing past a distance/velocity
+     threshold completes the turn; otherwise it springs back. A drag
+     that's mostly vertical is left alone so the chapter scrolls
+     normally, and a short tap with almost no movement toggles the
+     top bar. */
+
+  var gesture = null; // {x0,y0,t0,axis:null|'x'|'y'}
+  var transitioning = false; // true while a chapter-change animation is in flight
+  var TAP_MAX_MOVE = 12;
+  var TAP_MAX_TIME = 500;
+  var AXIS_LOCK_THRESHOLD = 8;
+
+  readerEl.addEventListener("touchstart", function(e){
+    var onNote = e.target.closest && e.target.closest(".note-ref");
+    if (transitioning || e.touches.length !== 1 || onNote){ gesture = null; return; }
+    var t = e.touches[0];
+    gesture = { x0: t.clientX, y0: t.clientY, t0: Date.now(), axis: null };
+    containerW = readerEl.clientWidth;
+  }, { passive: true });
+
+  readerEl.addEventListener("touchmove", function(e){
+    if (!gesture || e.touches.length !== 1) return;
+    var t = e.touches[0];
+    var dx = t.clientX - gesture.x0;
+    var dy = t.clientY - gesture.y0;
+
+    if (gesture.axis === null){
+      if (Math.abs(dx) > AXIS_LOCK_THRESHOLD || Math.abs(dy) > AXIS_LOCK_THRESHOLD){
+        gesture.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      }
+    }
+    if (gesture.axis === "x"){
+      if (e.cancelable) e.preventDefault();
+      var clamped = dx;
+      if (dx > 0 && !currentPrevRef) clamped = dx * 0.25; // resistance: no previous chapter
+      if (dx < 0 && !currentNextRef) clamped = dx * 0.25; // resistance: no next chapter
+      setTrackX(-containerW + clamped, false);
+    }
+    // vertical drags fall through untouched so the page scrolls natively
+  }, { passive: false });
+
+  readerEl.addEventListener("touchend", function(e){
+    if (!gesture) return;
+    var t = e.changedTouches[0];
+    var dx = t.clientX - gesture.x0;
+    var dy = t.clientY - gesture.y0;
+    var dt = Date.now() - gesture.t0;
+    var axis = gesture.axis;
+    gesture = null;
+
+    if (axis === "x"){
+      var threshold = Math.min(120, containerW * 0.28);
+      var isFlick = dt < 250 && Math.abs(dx) > 40;
+      var goNext = currentNextRef && (dx <= -threshold || (isFlick && dx < 0));
+      var goPrev = currentPrevRef && (dx >= threshold || (isFlick && dx > 0));
+
+      if (goNext){
+        transitioning = true;
+        animateTrackTo(-containerW * 2, function(){
+          transitioning = false;
+          renderChapter(currentNextRef.b, currentNextRef.c, {});
+        });
+      } else if (goPrev){
+        transitioning = true;
+        animateTrackTo(0, function(){
+          transitioning = false;
+          renderChapter(currentPrevRef.b, currentPrevRef.c, {});
+        });
+      } else {
+        setTrackX(-containerW, true); // spring back to the current chapter
+      }
+      return;
+    }
+
+    if (axis === null && dt <= TAP_MAX_TIME && Math.abs(dx) < TAP_MAX_MOVE && Math.abs(dy) < TAP_MAX_MOVE){
+      setChrome(!chromeHidden);
+    }
+  }, { passive: true });
+
+  readerEl.addEventListener("touchcancel", function(){
+    if (gesture && gesture.axis === "x") setTrackX(-containerW, true);
+    gesture = null;
+  }, { passive: true });
+
+  window.addEventListener("resize", function(){
+    if (!gesture && !transitioning) layoutTrack(false);
+  });
+
+  /* ---------------- add to home screen + offline caching ---------------- */
+
+  if ("serviceWorker" in navigator){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("sw.js").catch(function(){
+        // Offline caching just won't be available (e.g. opened as a local
+        // file); the page still works normally otherwise.
+      });
+    });
+  }
+
+  var installBtn = $("install-btn");
+  var deferredInstallPrompt = null;
+
+  window.addEventListener("beforeinstallprompt", function(e){
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    installBtn.hidden = false;
+  });
+
+  installBtn.addEventListener("click", function(){
+    if (!deferredInstallPrompt) return;
+    installBtn.hidden = true;
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.finally(function(){
+      deferredInstallPrompt = null;
+    });
+  });
+
+  window.addEventListener("appinstalled", function(){
+    installBtn.hidden = true;
+    deferredInstallPrompt = null;
+  });
+
+  loadState();
+  fetchData();
+
+})();
+</script>
