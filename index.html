@@ -284,6 +284,11 @@
   .sheet-head .back-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}
   .sheet-body{overflow-y:auto; padding:8px 10px 24px;}
 
+  .easy-box{margin:4px 2px 14px;}
+  .easy-seg{display:flex; border:1px solid var(--paper-line); border-radius:10px; overflow:hidden;}
+  .easy-seg button{flex:1; padding:10px 8px; border:0; background:transparent; color:inherit; font:inherit; font-size:.95rem; cursor:pointer;}
+  .easy-seg button.on{background:var(--accent); color:var(--paper);}
+  .easy-note{font-size:.78rem; opacity:.7; margin:8px 2px 0; line-height:1.4;}
   .testament-label{
     font-family:"IBM Plex Sans",sans-serif; font-size:11px; font-weight:600;
     letter-spacing:.13em; text-transform:uppercase; color:var(--accent);
@@ -474,6 +479,8 @@
 
   var TESTAMENT_SPLIT = 39; // books[0..38] = Old Testament, 39..65 = New Testament
   var books = null;         // [{id,name,chapters:[[verseText,...],...]}]
+  var easyData = null;      // {BOOKID:[[verses]...]} smoothed text, only for some books
+  var easyOn = false;
   var flatVerses = null;    // [{b,c,v,ref,text,lower}] built lazily for search
   var state = { b: 0, c: 0, scale: 1 };
 
@@ -508,6 +515,23 @@
     safeSet("web-bible-state", JSON.stringify(state));
   }
 
+  function chapterVerses(book, cIdx){
+    if (easyOn && easyData && easyData[book.id] && easyData[book.id][cIdx]) return easyData[book.id][cIdx];
+    return book.chapters[cIdx];
+  }
+  function easyAvailable(){
+    var n = [];
+    if (easyData) for (var i = 0; i < books.length; i++) if (easyData[books[i].id]) n.push(books[i].name);
+    return n;
+  }
+  function setEasy(on){
+    easyOn = !!on && !!easyData;
+    safeSet("web-bible-easy", easyOn ? "1" : "0");
+    flatVerses = null;
+    renderBookList();
+    renderChapter(state.b, state.c, { scroll:false });
+  }
+
   function fetchData(){
     loadingEl.style.display = "flex";
     errorEl.style.display = "none";
@@ -518,6 +542,11 @@
       })
       .then(function(data){
         books = data;
+        return fetch("web-bible-easy.json").then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+      })
+      .then(function(easy){
+        easyData = easy;
+        easyOn = !!easy && safeGet("web-bible-easy") === "1";
         if (state.b < 0 || state.b >= books.length) state.b = 0;
         if (state.c < 0 || state.c >= books[state.b].chapters.length) state.c = 0;
         applyScale();
@@ -577,14 +606,16 @@
       var letter = noteLetter(noteCounter.n++);
       out += '<sup class="note-ref" data-b="' + bIdx + '" data-c="' + cIdx + '" data-v="' + vnum + '" data-i="' + seen + '">' + letter + '</sup>';
       noteCounter.perVerse[vnum] = seen + 1;
-      out += escapeHtml(parts[p]);
+      var rest = parts[p];
+      if (/^[A-Za-z0-9\u201c\u2018(]/.test(rest)) rest = ' ' + rest;
+      out += escapeHtml(rest);
     }
     return out;
   }
 
   function buildChapterHTML(bIdx, cIdx){
     var book = books[bIdx];
-    var verses = book.chapters[cIdx];
+    var verses = chapterVerses(book, cIdx);
 
     var html = '<div class="chapter-head">' +
       '<div><h2>' + book.name + ' ' + (cIdx + 1) + '</h2></div></div>';
@@ -812,6 +843,12 @@
     $("picker-back").hidden = true;
     $("picker-title").textContent = "Books";
     var html = "";
+    if (easyData){
+      html += '<div class="easy-box ui"><div class="easy-seg" role="group" aria-label="Text version">' +
+        '<button type="button" data-easy="0" class="' + (easyOn ? '' : 'on') + '">Original</button>' +
+        '<button type="button" data-easy="1" class="' + (easyOn ? 'on' : '') + '">Easy reading</button></div>' +
+        '<p class="easy-note">Easy reading is a gentle paraphrase of the World English Bible, verse for verse, in smoother modern English. Available so far: ' + easyAvailable().join(", ") + '. Other books show the original text.</p></div>';
+    }
     for (var i = 0; i < books.length; i++){
       if (i === 0) html += '<div class="testament-label">Old Testament</div><div class="book-grid">';
       if (i === TESTAMENT_SPLIT) html += '</div><div class="testament-label">New Testament</div><div class="book-grid">';
@@ -820,6 +857,9 @@
     }
     html += '</div>';
     $("picker-body").innerHTML = html;
+    $("picker-body").querySelectorAll(".easy-seg button").forEach(function(b){
+      b.addEventListener("click", function(){ setEasy(b.getAttribute("data-easy") === "1"); });
+    });
     var cells = $("picker-body").querySelectorAll(".book-cell");
     cells.forEach(function(cell){
       cell.addEventListener("click", function(){
@@ -863,7 +903,7 @@
     for (var bi = 0; bi < books.length; bi++){
       var book = books[bi];
       for (var ci = 0; ci < book.chapters.length; ci++){
-        var verses = book.chapters[ci];
+        var verses = chapterVerses(book, ci);
         for (var vi = 0; vi < verses.length; vi++){
           var text = verses[vi];
           flatVerses.push({

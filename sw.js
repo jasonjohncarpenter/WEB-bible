@@ -3,10 +3,10 @@
 // with no network connection afterward (installed to the home screen
 // or just revisited in the browser).
 
-var CACHE_NAME = "web-bible-v3";
+var CACHE_NAME = "web-bible-v4";
 var CORE_ASSETS = [
   "./index.html",
-  "./web-bible-data.json",
+  "./web-bible-data.json", "./web-bible-easy.json",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
