@@ -76,7 +76,7 @@
     font-family:"Literata","Iowan Old Style","Georgia",serif;
     overflow:hidden;
   }
-  :root{ --topbar-h: 60px; --title-h: 38px; }
+  :root{ --topbar-h: 60px; --title-h: 0px; }
 
   h1,h2,h3,.display{
     font-family:"Fraunces","Iowan Old Style",Georgia,serif;
@@ -281,21 +281,14 @@
   .sheet-head .back-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}
   .sheet-body{overflow-y:auto; padding:8px 10px 24px;}
 
-  .titlebar{
-    position:fixed; top:0; left:0; right:0; z-index:15;
-    height:calc(var(--title-h) + env(safe-area-inset-top,0px));
-    padding-top:env(safe-area-inset-top,0px);
-    display:flex; align-items:center; justify-content:center; gap:6px;
-    background:var(--paper); border-bottom:1px solid var(--paper-line);
-    font-family:"Fraunces",Georgia,serif; font-size:16px; font-weight:600; color:var(--ink);
-  }
-  .titlebar:active{background:var(--paper-line);}
-  .titlebar svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2.2;transition:transform .2s;}
-  .titlebar[aria-expanded="true"] svg{transform:rotate(180deg);}
+  .ver-credit{font-size:11.5px; opacity:.6; text-align:center; margin:18px 0 0;}
+  .chapter-title-btn{display:inline-flex; align-items:center; gap:8px; text-align:left; color:inherit; padding:0; -webkit-tap-highlight-color:transparent;}
+  .chapter-title-btn svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:2.2;opacity:.75;margin-top:6px;flex:0 0 auto;transition:transform .2s;}
+  .chapter-title-btn[aria-expanded="true"] svg{transform:rotate(180deg);}
   .nav-drop{
     position:fixed; left:0; right:0; z-index:45;
-    top:calc(var(--title-h) + env(safe-area-inset-top,0px));
-    max-height:calc(100vh - var(--title-h) - env(safe-area-inset-top,0px) - 24px);
+    top:env(safe-area-inset-top,0px);
+    max-height:calc(100vh - env(safe-area-inset-top,0px) - 24px);
     overflow-y:auto; -webkit-overflow-scrolling:touch;
     background:var(--paper-raised); border-bottom:1px solid var(--paper-line);
     box-shadow:var(--shadow); padding:4px 8px 16px;
@@ -424,10 +417,6 @@
   <button id="retry-btn" class="ui">Try again</button>
 </div>
 
-<button class="titlebar ui" id="titlebar" aria-haspopup="true" aria-expanded="false" hidden>
-  <span class="title" id="ref-title">Genesis 1</span>
-  <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-</button>
 <div class="nav-drop ui" id="nav-drop" hidden><div id="nav-body"></div></div>
 
 <header class="topbar ui" id="topbar" hidden>
@@ -437,8 +426,9 @@
   </div>
   <div class="ver-wrap" id="ver-wrap">
     <select class="ver-select ui" id="version-select" aria-label="Text version">
-      <option value="0">Original (WEB)</option>
-      <option value="1">Easy reading</option>
+      <option value="web">World English Bible</option>
+      <option value="easy">Easy reading (WEB)</option>
+      <option value="bsb">Berean Standard Bible</option>
     </select>
   </div>
   <button class="icon-btn" id="search-btn" aria-label="Search the Bible">
@@ -503,6 +493,8 @@
   var books = null;         // [{id,name,chapters:[[verseText,...],...]}]
   var easyData = null;      // {BOOKID:[[verses]...]} smoothed text, only for some books
   var easyOn = false;
+  var bsbData = null;       // {BOOKID:[[verses]...]} Berean Standard Bible
+  var bsbOn = false;
   var flatVerses = null;    // [{b,c,v,ref,text,lower}] built lazily for search
   var state = { b: 0, c: 0, scale: 1 };
 
@@ -538,6 +530,7 @@
   }
 
   function chapterVerses(book, cIdx){
+    if (bsbOn && bsbData && bsbData[book.id] && bsbData[book.id][cIdx]) return bsbData[book.id][cIdx];
     if (easyOn && easyData && easyData[book.id] && easyData[book.id][cIdx]) return easyData[book.id][cIdx];
     return book.chapters[cIdx];
   }
@@ -546,10 +539,12 @@
     if (easyData) for (var i = 0; i < books.length; i++) if (easyData[books[i].id]) n.push(books[i].name);
     return n;
   }
-  function setEasy(on){
-    easyOn = !!on && !!easyData;
-    $("version-select").value = easyOn ? "1" : "0";
-    safeSet("web-bible-easy", easyOn ? "1" : "0");
+  function currentVersion(){ return bsbOn ? "bsb" : (easyOn ? "easy" : "web"); }
+  function setVersion(v){
+    bsbOn = (v === "bsb") && !!bsbData;
+    easyOn = (v === "easy") && !!easyData;
+    $("version-select").value = currentVersion();
+    safeSet("web-bible-version", currentVersion());
     flatVerses = null;
     renderChapter(state.b, state.c, { scroll:false });
   }
@@ -568,15 +563,22 @@
       })
       .then(function(easy){
         easyData = easy;
-        easyOn = !!easy && safeGet("web-bible-easy") === "1";
+        return fetch("web-bible-bsb.json").then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+      })
+      .then(function(bsb){
+        bsbData = bsb;
+        var sv = safeGet("web-bible-version") || (safeGet("web-bible-easy") === "1" ? "easy" : "web");
+        easyOn = (sv === "easy") && !!easyData;
+        bsbOn = (sv === "bsb") && !!bsbData;
         if (state.b < 0 || state.b >= books.length) state.b = 0;
         if (state.c < 0 || state.c >= books[state.b].chapters.length) state.c = 0;
         applyScale();
         loadingEl.style.display = "none";
         topbarEl.hidden = false;
-        titleBtn.hidden = false;
-        $("ver-wrap").hidden = !easyData;
-        $("version-select").value = easyOn ? "1" : "0";
+        $("ver-wrap").hidden = !(easyData || bsbData);
+        $("version-select").querySelector('option[value="easy"]').hidden = !easyData;
+        $("version-select").querySelector('option[value="bsb"]').hidden = !bsbData;
+        $("version-select").value = currentVersion();
         setChrome(true);
         readerEl.hidden = false;
         renderChapter(state.b, state.c, { scroll:false });
@@ -589,7 +591,7 @@
   }
 
   $("retry-btn").addEventListener("click", fetchData);
-  $("version-select").addEventListener("change", function(){ setEasy(this.value === "1"); });
+  $("version-select").addEventListener("change", function(){ var self = this; setVersion(self.value); keepChrome(); setTimeout(function(){ self.blur(); }, 50); });
 
   /* ---------------- rendering ---------------- */
 
@@ -645,10 +647,10 @@
     var verses = chapterVerses(book, cIdx);
 
     var html = '<div class="chapter-head">' +
-      '<div><h2>' + book.name + ' ' + (cIdx + 1) + '</h2></div></div>';
+      '<div><button type="button" class="chapter-title-btn" aria-haspopup="true" aria-expanded="false" aria-label="Choose book and chapter"><h2>' + book.name + ' ' + (cIdx + 1) + '</h2><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></button></div></div>';
 
     var heading = book.headings && book.headings[String(cIdx)];
-    if (heading){
+    if (heading && !(bsbOn && book.id === "PSA")){
       html += '<p class="chapter-super">' + escapeHtml(heading) + '</p>';
     }
 
@@ -663,6 +665,7 @@
     html += '<div class="verses">';
     for (var i = 0; i < verses.length; i++){
       var vnum = i + 1;
+      if (!verses[i]) continue;   // verse not present in this version
       var chunks = verses[i].split(PARA_MARK);
       for (var ci = 0; ci < chunks.length; ci++){
         if (vnum === 1 && ci === 0){
@@ -686,12 +689,14 @@
       }
     }
     html += '</p></div>';
+    if (bsbOn) html += '<div class="ver-credit ui">Berean Standard Bible &mdash; public domain.</div>';
+    else if (easyOn && easyData && easyData[book.id]) html += '<div class="ver-credit ui">Easy reading &mdash; a gentle paraphrase of the World English Bible.</div>';
 
     var isLast = (bIdx === books.length - 1 && cIdx === book.chapters.length - 1);
     var isFirst = (bIdx === 0 && cIdx === 0);
     if (isLast || isFirst){
       html += '<div class="chapter-end ui"><span>' +
-        (isLast ? "End of the World English Bible" : "Swipe left for the next chapter") +
+        (isLast ? (bsbOn ? "End of the Berean Standard Bible" : "End of the Bible") : "Swipe left for the next chapter") +
         '</span></div>';
     }
     return html;
@@ -736,7 +741,6 @@
     persistState();
 
     var book = books[bIdx];
-    $("ref-title").textContent = book.name + " " + (cIdx + 1);
 
     currentPrevRef = neighborChapter(bIdx, cIdx, -1);
     currentNextRef = neighborChapter(bIdx, cIdx, 1);
@@ -863,7 +867,7 @@
     return m ? (m[1] + cased) : cased;
   }
 
-  var navDrop = $("nav-drop"), navBody = $("nav-body"), titleBtn = $("titlebar");
+  var navDrop = $("nav-drop"), navBody = $("nav-body");
   var navOpen = false;
 
   function renderNav(selBook){
@@ -903,17 +907,20 @@
     closeSheets();
     renderNav(null);
     navDrop.hidden = false; navOpen = true;
-    titleBtn.setAttribute("aria-expanded", "true");
+    document.querySelectorAll(".chapter-title-btn").forEach(function(b){ b.setAttribute("aria-expanded","true"); });
     backdrop.classList.add("open");
     navDrop.scrollTop = 0;
   }
   function closeNav(){
     if (!navOpen) return;
     navDrop.hidden = true; navOpen = false;
-    titleBtn.setAttribute("aria-expanded", "false");
+    document.querySelectorAll(".chapter-title-btn").forEach(function(b){ b.setAttribute("aria-expanded","false"); });
     backdrop.classList.remove("open");
   }
-  titleBtn.addEventListener("click", function(){ navOpen ? closeNav() : openNav(); });
+  readerEl.addEventListener("click", function(e){
+    var t = e.target.closest && e.target.closest(".chapter-title-btn");
+    if (t){ navOpen ? closeNav() : openNav(); }
+  });
 
   /* ---- search ---- */
 
@@ -1061,13 +1068,17 @@
     if (!hidden) chromeTimer = setTimeout(autoHideChrome, 3000);
   }
   function autoHideChrome(){
-    var busy = openSheetEl || navOpen || document.activeElement === $("version-select");
-    if (busy){ chromeTimer = setTimeout(autoHideChrome, 3000); return; }
+    // Only the search sheet or the book drop-down keep the bar up.
+    if (openSheetEl || navOpen){ chromeTimer = setTimeout(autoHideChrome, 3000); return; }
+    var a = document.activeElement;
+    if (a && a.blur && a.id === "version-select") a.blur();
     setChrome(true);
   }
   function keepChrome(){ if (!chromeHidden){ clearTimeout(chromeTimer); chromeTimer = setTimeout(autoHideChrome, 3000); } }
   topbarEl.addEventListener("pointerdown", keepChrome);
-  topbarEl.addEventListener("change", keepChrome);
+  // any reading gesture (scroll or page swipe) puts the bar away straight away
+  function dismissChromeOnGesture(){ if (!chromeHidden) setChrome(true); }
+  readerEl.addEventListener("scroll", dismissChromeOnGesture, { passive: true, capture: true });
 
   /* ---------------- swipe navigation (finger-tracking) + tap-to-toggle ---------------- */
   /* The page track follows the finger 1:1 while dragging horizontally,
@@ -1085,7 +1096,7 @@
   var AXIS_LOCK_THRESHOLD = 8;
 
   readerEl.addEventListener("touchstart", function(e){
-    var onNote = e.target.closest && e.target.closest(".note-ref");
+    var onNote = e.target.closest && e.target.closest(".note-ref, .chapter-title-btn");
     if (transitioning || e.touches.length !== 1 || onNote){ gesture = null; return; }
     var t = e.touches[0];
     gesture = { x0: t.clientX, y0: t.clientY, t0: Date.now(), axis: null };
@@ -1101,6 +1112,7 @@
     if (gesture.axis === null){
       if (Math.abs(dx) > AXIS_LOCK_THRESHOLD || Math.abs(dy) > AXIS_LOCK_THRESHOLD){
         gesture.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+        dismissChromeOnGesture();
       }
     }
     if (gesture.axis === "x"){
