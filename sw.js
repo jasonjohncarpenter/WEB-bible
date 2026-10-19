@@ -3,13 +3,13 @@
 // with no network connection afterward (installed to the home screen
 // or just revisited in the browser).
 
-var CACHE_NAME = "web-bible-v7";
+var CACHE_NAME = "web-bible-v8";
 var CORE_ASSETS = [
   "./index.html",
   "./web-bible-data.json", "./web-bible-easy.json", "./web-bible-bsb.json",
   "./manifest.json",
   "./icon-192.png",
-  "./icon-512.png"
+  "./icon-512.png", "./icon-maskable-192.png", "./icon-maskable-512.png"
 ];
 
 self.addEventListener("install", function(event){
