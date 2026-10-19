@@ -76,7 +76,7 @@
     font-family:"Literata","Iowan Old Style","Georgia",serif;
     overflow:hidden;
   }
-  :root{ --topbar-h: 60px; }
+  :root{ --topbar-h: 60px; --title-h: 38px; }
 
   h1,h2,h3,.display{
     font-family:"Fraunces","Iowan Old Style",Georgia,serif;
@@ -184,12 +184,9 @@
   .page-inner{
     max-width:640px;
     margin:0 auto;
-    padding:calc(var(--topbar-h) + env(safe-area-inset-top,0px) + 20px) 20px calc(env(safe-area-inset-bottom,0px) + 36px);
+    padding:calc(var(--title-h) + env(safe-area-inset-top,0px) + 14px) 20px calc(env(safe-area-inset-bottom,0px) + 36px);
     transition:padding-top .28s cubic-bezier(.32,.72,0,1);
     min-height:100%;
-  }
-  #reader.chrome-hidden .page-inner{
-    padding-top:calc(env(safe-area-inset-top,0px) + 20px);
   }
   .chapter-head{
     display:flex; align-items:baseline; gap:10px; margin-bottom:18px;
@@ -284,6 +281,33 @@
   .sheet-head .back-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}
   .sheet-body{overflow-y:auto; padding:8px 10px 24px;}
 
+  .titlebar{
+    position:fixed; top:0; left:0; right:0; z-index:15;
+    height:calc(var(--title-h) + env(safe-area-inset-top,0px));
+    padding-top:env(safe-area-inset-top,0px);
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    background:var(--paper); border-bottom:1px solid var(--paper-line);
+    font-family:"Fraunces",Georgia,serif; font-size:16px; font-weight:600; color:var(--ink);
+  }
+  .titlebar:active{background:var(--paper-line);}
+  .titlebar svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2.2;transition:transform .2s;}
+  .titlebar[aria-expanded="true"] svg{transform:rotate(180deg);}
+  .nav-drop{
+    position:fixed; left:0; right:0; z-index:45;
+    top:calc(var(--title-h) + env(safe-area-inset-top,0px));
+    max-height:calc(100vh - var(--title-h) - env(safe-area-inset-top,0px) - 24px);
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+    background:var(--paper-raised); border-bottom:1px solid var(--paper-line);
+    box-shadow:var(--shadow); padding:4px 8px 16px;
+    max-width:680px; margin:0 auto; border-radius:0 0 14px 14px;
+  }
+  .nav-chap-label{font-family:"IBM Plex Sans",sans-serif; font-size:12px; font-weight:600; color:var(--wine); padding:6px 10px 0;}
+  .ver-wrap{flex:1 1 auto; min-width:0; display:flex; justify-content:center;}
+  .ver-select{
+    max-width:100%; padding:7px 28px 7px 12px; border-radius:10px;
+    border:1px solid var(--paper-line); background:var(--paper); color:var(--ink);
+    font-size:14px; font-weight:600; appearance:auto; text-align:center;
+  }
   .easy-box{margin:4px 2px 14px;}
   .easy-seg{display:flex; border:1px solid var(--paper-line); border-radius:10px; overflow:hidden;}
   .easy-seg button{flex:1; padding:10px 8px; border:0; background:transparent; color:inherit; font:inherit; font-size:.95rem; cursor:pointer;}
@@ -400,14 +424,23 @@
   <button id="retry-btn" class="ui">Try again</button>
 </div>
 
+<button class="titlebar ui" id="titlebar" aria-haspopup="true" aria-expanded="false" hidden>
+  <span class="title" id="ref-title">Genesis 1</span>
+  <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+</button>
+<div class="nav-drop ui" id="nav-drop" hidden><div id="nav-body"></div></div>
+
 <header class="topbar ui" id="topbar" hidden>
   <div class="fontsize-group">
     <button class="icon-btn fs-small" id="fs-down" aria-label="Smaller text">A</button>
     <button class="icon-btn fs-big" id="fs-up" aria-label="Larger text">A</button>
   </div>
-  <button class="ref-btn" id="ref-btn" aria-haspopup="true">
-    <span class="title" id="ref-title">Genesis 1</span>
-  </button>
+  <div class="ver-wrap" id="ver-wrap">
+    <select class="ver-select ui" id="version-select" aria-label="Text version">
+      <option value="0">Original (WEB)</option>
+      <option value="1">Easy reading</option>
+    </select>
+  </div>
   <button class="icon-btn" id="search-btn" aria-label="Search the Bible">
     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
   </button>
@@ -434,18 +467,7 @@
 
 <div class="sheet-backdrop" id="backdrop"></div>
 
-<!-- Book / chapter picker -->
-<section class="sheet" id="picker-sheet" aria-label="Choose a book and chapter">
-  <div class="sheet-handle"></div>
-  <div class="sheet-head">
-    <button class="back-btn ui" id="picker-back" hidden>
-      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg> Books
-    </button>
-    <h3 class="display" id="picker-title">Books</h3>
-    <span style="width:52px"></span>
-  </div>
-  <div class="sheet-body" id="picker-body"></div>
-</section>
+
 
 <!-- Search -->
 <section class="sheet" id="search-sheet" aria-label="Search the Bible">
@@ -526,9 +548,9 @@
   }
   function setEasy(on){
     easyOn = !!on && !!easyData;
+    $("version-select").value = easyOn ? "1" : "0";
     safeSet("web-bible-easy", easyOn ? "1" : "0");
     flatVerses = null;
-    renderBookList();
     renderChapter(state.b, state.c, { scroll:false });
   }
 
@@ -552,6 +574,10 @@
         applyScale();
         loadingEl.style.display = "none";
         topbarEl.hidden = false;
+        titleBtn.hidden = false;
+        $("ver-wrap").hidden = !easyData;
+        $("version-select").value = easyOn ? "1" : "0";
+        setChrome(true);
         readerEl.hidden = false;
         renderChapter(state.b, state.c, { scroll:false });
       })
@@ -563,6 +589,7 @@
   }
 
   $("retry-btn").addEventListener("click", fetchData);
+  $("version-select").addEventListener("change", function(){ setEasy(this.value === "1"); });
 
   /* ---------------- rendering ---------------- */
 
@@ -786,7 +813,6 @@
   /* ---------------- sheets ---------------- */
 
   var backdrop = $("backdrop");
-  var pickerSheet = $("picker-sheet");
   var searchSheet = $("search-sheet");
   var noteSheet = $("note-sheet");
   var openSheetEl = null;
@@ -799,7 +825,7 @@
   }
   function closeSheets(){
     backdrop.classList.remove("open");
-    pickerSheet.classList.remove("open");
+    if (typeof closeNav === "function") closeNav();
     searchSheet.classList.remove("open");
     noteSheet.classList.remove("open");
     openSheetEl = null;
@@ -828,10 +854,8 @@
     openSheet(noteSheet);
   });
 
-  /* ---- book / chapter picker ---- */
+  /* ---- title drop-down: books, then chapters beneath ---- */
 
-  // Turns a USFX book id ("1SA", "GEN", "SNG") into a compact display
-  // abbreviation ("1Sa", "Gen", "Sng") for the dense book grid.
   function bookAbbr(id){
     var m = id.match(/^(\d)([A-Z]+)$/);
     var letters = m ? m[2] : id;
@@ -839,61 +863,57 @@
     return m ? (m[1] + cased) : cased;
   }
 
-  function renderBookList(){
-    $("picker-back").hidden = true;
-    $("picker-title").textContent = "Books";
-    var html = "";
-    if (easyData){
-      html += '<div class="easy-box ui"><div class="easy-seg" role="group" aria-label="Text version">' +
-        '<button type="button" data-easy="0" class="' + (easyOn ? '' : 'on') + '">Original</button>' +
-        '<button type="button" data-easy="1" class="' + (easyOn ? 'on' : '') + '">Easy reading</button></div>' +
-        '<p class="easy-note">Easy reading is a gentle paraphrase of the World English Bible, verse for verse, in smoother modern English. Available so far: ' + easyAvailable().join(", ") + '. Other books show the original text.</p></div>';
+  var navDrop = $("nav-drop"), navBody = $("nav-body"), titleBtn = $("titlebar");
+  var navOpen = false;
+
+  function renderNav(selBook){
+    var html = "", chapHtml = "";
+    if (selBook != null){
+      var sb = books[selBook];
+      chapHtml = '<div class="nav-chap-label">' + sb.name + ' — choose a chapter</div><div class="chap-grid" id="nav-chaps">';
+      for (var c = 0; c < sb.chapters.length; c++){
+        var curc = (selBook === state.b && c === state.c) ? " current" : "";
+        chapHtml += '<button class="chap-cell ui' + curc + '" data-chap="' + c + '">' + (c+1) + '</button>';
+      }
+      chapHtml += '</div>';
     }
     for (var i = 0; i < books.length; i++){
       if (i === 0) html += '<div class="testament-label">Old Testament</div><div class="book-grid">';
-      if (i === TESTAMENT_SPLIT) html += '</div><div class="testament-label">New Testament</div><div class="book-grid">';
-      var cur = (i === state.b) ? " current" : "";
+      if (i === TESTAMENT_SPLIT) html += '</div>' + ((selBook != null && selBook < TESTAMENT_SPLIT) ? chapHtml : '') + '<div class="testament-label">New Testament</div><div class="book-grid">';
+      var cur = (i === (selBook != null ? selBook : state.b)) ? " current" : "";
       html += '<button class="book-cell ui' + cur + '" data-book="' + i + '">' + bookAbbr(books[i].id) + '</button>';
     }
-    html += '</div>';
-    $("picker-body").innerHTML = html;
-    $("picker-body").querySelectorAll(".easy-seg button").forEach(function(b){
-      b.addEventListener("click", function(){ setEasy(b.getAttribute("data-easy") === "1"); });
-    });
-    var cells = $("picker-body").querySelectorAll(".book-cell");
-    cells.forEach(function(cell){
+    html += '</div>' + ((selBook != null && selBook >= TESTAMENT_SPLIT) ? chapHtml : '');
+    navBody.innerHTML = html;
+    navBody.querySelectorAll(".book-cell").forEach(function(cell){
       cell.addEventListener("click", function(){
-        renderChapterGrid(+cell.getAttribute("data-book"));
+        renderNav(+cell.getAttribute("data-book"));
+        var el = $("nav-chaps");
+        if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+    });
+    navBody.querySelectorAll(".chap-cell").forEach(function(cell){
+      cell.addEventListener("click", function(){
+        renderChapter(selBook, +cell.getAttribute("data-chap"), {});
+        closeNav();
       });
     });
   }
-
-  function renderChapterGrid(bIdx){
-    var book = books[bIdx];
-    $("picker-back").hidden = false;
-    $("picker-title").textContent = book.name;
-    var html = '<div class="chap-grid">';
-    for (var c = 0; c < book.chapters.length; c++){
-      var cur = (bIdx === state.b && c === state.c) ? " current" : "";
-      html += '<button class="chap-cell ui' + cur + '" data-chap="' + c + '">' + (c+1) + '</button>';
-    }
-    html += '</div>';
-    var body = $("picker-body");
-    body.innerHTML = html;
-    body.scrollTop = 0;
-    body.querySelectorAll(".chap-cell").forEach(function(cell){
-      cell.addEventListener("click", function(){
-        renderChapter(bIdx, +cell.getAttribute("data-chap"), {});
-        closeSheets();
-      });
-    });
+  function openNav(){
+    closeSheets();
+    renderNav(null);
+    navDrop.hidden = false; navOpen = true;
+    titleBtn.setAttribute("aria-expanded", "true");
+    backdrop.classList.add("open");
+    navDrop.scrollTop = 0;
   }
-
-  $("picker-back").addEventListener("click", renderBookList);
-  $("ref-btn").addEventListener("click", function(){
-    renderBookList();
-    openSheet(pickerSheet);
-  });
+  function closeNav(){
+    if (!navOpen) return;
+    navDrop.hidden = true; navOpen = false;
+    titleBtn.setAttribute("aria-expanded", "false");
+    backdrop.classList.remove("open");
+  }
+  titleBtn.addEventListener("click", function(){ navOpen ? closeNav() : openNav(); });
 
   /* ---- search ---- */
 
@@ -1032,11 +1052,22 @@
      screen; tapping again (anywhere in the text) brings it back. */
 
   var chromeHidden = false;
+  var chromeTimer = null;
   function setChrome(hidden){
     chromeHidden = hidden;
     topbarEl.classList.toggle("hide", hidden);
     readerEl.classList.toggle("chrome-hidden", hidden);
+    clearTimeout(chromeTimer);
+    if (!hidden) chromeTimer = setTimeout(autoHideChrome, 3000);
   }
+  function autoHideChrome(){
+    var busy = openSheetEl || navOpen || document.activeElement === $("version-select");
+    if (busy){ chromeTimer = setTimeout(autoHideChrome, 3000); return; }
+    setChrome(true);
+  }
+  function keepChrome(){ if (!chromeHidden){ clearTimeout(chromeTimer); chromeTimer = setTimeout(autoHideChrome, 3000); } }
+  topbarEl.addEventListener("pointerdown", keepChrome);
+  topbarEl.addEventListener("change", keepChrome);
 
   /* ---------------- swipe navigation (finger-tracking) + tap-to-toggle ---------------- */
   /* The page track follows the finger 1:1 while dragging horizontally,
